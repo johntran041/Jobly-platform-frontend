@@ -1,11 +1,8 @@
+// src/App.tsx
+
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { CartProvider } from "./contexts/CartContext"; // ← Import Provider
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LoginPage } from "./components/LoginPage";
-import { Dashboard } from "./components/Dashboard";
-import { CartPage } from "./components/CartPage";
-import { ProductsSection } from "./components/ProductsSection";
-import { ProductDetailsPage } from "./components/ProductDetailsPage";
 import "./App.css";
 
 interface ValidateUser {
@@ -74,7 +71,9 @@ function App() {
     }
     timerRef.current = setTimeout(() => {
       console.log("⏰ Idle timeout! Logging out...");
-      alert("⏰ You've been inactive for 1 minute. Logging out for security.");
+      alert(
+        "⏰ You've been inactive for 30 minutes. Logging out for security."
+      );
       handleLogout();
     }, IDLE_TIMEOUT);
   }, [user, handleLogout, IDLE_TIMEOUT]);
@@ -106,69 +105,22 @@ function App() {
   }, [user, resetIdleTimer]);
 
   return (
-    // ✨ Wrap everything in CartProvider
-    <CartProvider user={user}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            user ? (
-              <Navigate to="/products" replace />
-            ) : (
-              <LoginPage onLogin={handleLogin} />
-            )
-          }
-        />
+    <Routes>
+      <Route
+        path="/"
+        element={
+          user ? (
+            <Navigate to="/jobs" replace />
+          ) : (
+            <LoginPage onLogin={handleLogin} />
+          )
+        }
+      />
 
-        <Route
-          path="/products"
-          element={
-            user ? (
-              // ✨ Remove cart props - components will get from context!
-              <ProductsSection user={user} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+      {/* Will add /jobs, /applications routes tomorrow */}
 
-        <Route
-          path="/dashboard"
-          element={
-            user ? (
-              <Dashboard user={user} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-
-        <Route
-          path="/cart"
-          element={
-            user ? (
-              // ✨ Remove cart props - component will get from context!
-              <CartPage user={user} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-
-        <Route
-          path="/product/:id"
-          element={
-            user ? (
-              <ProductDetailsPage user={user} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </CartProvider>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

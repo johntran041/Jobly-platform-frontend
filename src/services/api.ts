@@ -1,191 +1,254 @@
-// src/services/api.js
+// src/services/api.ts
+// File imports TypeScript types
+// Crucial for strong type checking, ensuring that data sent to and receieved from the API matches the exprected structure
+import type {
+  User,
+  LoginCredentials,
+  RegisterData,
+  JobPosting,
+  CreateJobData,
+  UpdateJobData,
+  Application,
+  CreateApplicationData,
+  ApplicationStatus,
+  JobSearchParams,
+  CandidateSearchParams,
+  ApiResponse,
+  PaginatedResponse,
+} from "../types";
+
+// Constant determines the base URL for all API calls
+// Uses import.meta.env, means the url is configured via a Vite environment variable (e.g, in a .env file)
+// Then falls back to "localhost:5001/api" if the variable is not set
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
 
-export const productAPI = {
-  // Get all products
-  getAllProducts: async (limit = 20, skip = 0) => {
-    const response = await fetch(
-      `${API_URL}/products?limit=${limit}&skip=${skip}`
-    );
-    if (!response.ok) throw new Error("Failed to fetch products");
-    const json = await response.json();
+// ===== HELPER FUNCTIONS =====
+const getAuthHeader = (): HeadersInit => {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
-    // Handle new response format from Day 2
-    if (json.data) {
-      return {
-        products: json.data.products,
-        total: json.data.total,
-        skip: json.data.skip,
-        limit: json.data.limit,
-      };
-    }
+const handleResponse = async <T>(response: Response): Promise<T> => {
+  const data = await response.json();
 
-    // Fallback for old format
-    return json;
+  if (!response.ok) {
+    throw new Error(data.message || "Request failed");
+  }
+
+  // Data extraction (Specific Backend Format)
+  // Handle your backend's response format: { status: 'success', data: {...} }
+  if (data.status === "success" && data.data) {
+    return data.data;
+  }
+
+  return data;
+};
+
+// ===== AUTHENTICATION =====
+export const authAPI = {
+  register: async (
+    registerData: RegisterData
+  ): Promise<{ user: User; token: string }> => {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(registerData),
+    });
+  return handleResponse(response);
   },
 
-  // Get products by category
-  getProductsByCategory: async (category: any, limit = 20, skip = 0) => {
-    const response = await fetch(
-      `${API_URL}/products?category=${category}&limit=${limit}&skip=${skip}`
-    );
-    if (!response.ok) throw new Error("Failed to fetch products");
-    const json = await response.json();
-
-    // Handle new response format
-    if (json.data) {
-      return {
-        products: json.data.products,
-        total: json.data.total,
-        skip: json.data.skip,
-        limit: json.data.limit,
-      };
-    }
-
-    return json;
+  login: async (
+    credentials: LoginCredentials
+  ): Promise<{ user: User; token: string }> => {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(credentials),
+    });
+    return handleResponse(response);
   },
 
-  // Get single product
-  getProductById: async (id: any) => {
-    const response = await fetch(`${API_URL}/products/${id}`);
-    if (!response.ok) throw new Error("Product not found");
-    const json = await response.json();
-
-    // Handle new response format
-    if (json.data && json.data.product) {
-      return json.data.product;
-    }
-
-    return json;
+  async getProfile(): Promise<User> {
+    const response = await fetch(`${API_URL}/users/me`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(response);
   },
 
-  searchProducts: async (query: any, limit = 20) => {
-    const response = await fetch(
-      `${API_URL}/products/search?q=${query}&limit=${limit}`
-    );
-    if (!response.ok) throw new Error("Search failed");
-    const json = await response.json();
-
-    // Handle new response format
-    if (json.data) {
-      return {
-        products: json.data.products,
-        total: json.data.total,
-        limit: json.data.limit,
-      };
-    }
-
-    return json;
-  },
-
-  // Get categories
-  getCategories: async () => {
-    const response = await fetch(`${API_URL}/products/categories`);
-    if (!response.ok) throw new Error("Failed to fetch categories");
-    const json = await response.json();
-
-    // Handle new response format
-    if (json.data && json.data.categories) {
-      return json.data.categories;
-    }
-
-    return json;
+  updateProfile: async (data: Partial<User>): Promise<User> => {
+    const response = await fetch(`${API_URL}/users/me`, {
+      method: "PUT",
+      headers: new Headers({
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+      }),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
   },
 };
 
-// NEW: Cart API
-export const cartAPI = {
-  // Get user's cart
-  getCart: async (userId: number) => {
-    const response = await fetch(`${API_URL}/cart/${userId}`);
-    if (!response.ok) throw new Error("Failed to fetch cart");
-    const json = await response.json();
-    
-    // Handle new response format
-    if (json.data && json.data.cart) {
-      return json.data.cart;
-    }
-    
-    // Fallback for old format
-    return json;
+// ===== JOB API =====
+export const jobAPI = {
+  // Get all jobs with pagination
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    isActive?: boolean;
+  }): Promise<PaginatedResponse<JobPosting>> => {
+    const queryString = new URLSearchParams(
+      Object.entries(params || {}).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = String(value);
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString();
+
+    const response = await fetch(`${API_URL}/jobs?${queryString}`);
+    return handleResponse(response);
   },
 
-  // Add item to cart
-  addToCart: async (userId: number, productId: number, quantity: number = 1) => {
-    const response = await fetch(`${API_URL}/cart/${userId}/items`, {
+// Search jobs
+  search: async (
+    params: JobSearchParams
+  ): Promise<PaginatedResponse<JobPosting>> => {
+    const queryString = new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = String(value);
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString();
+
+    const response = await fetch(`${API_URL}/jobs/search?${queryString}`);
+    return handleResponse(response);
+  },
+
+  // Get single job by ID
+  getById: async (id: number): Promise<JobPosting> => {
+    const response = await fetch(`${API_URL}/jobs/${id}`);
+    return handleResponse(response);
+  },
+
+  // Create new job (recruiter only)
+  create: async (data: CreateJobData): Promise<JobPosting> => {
+    const response = await fetch(`${API_URL}/jobs`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId, quantity }),
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify(data),
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to add to cart");
-    }
-    const json = await response.json();
-    
-    // Handle new response format
-    if (json.data && json.data.cart) {
-      return json.data.cart;
-    }
-    
-    // Fallback for old format
-    return json;
+    return handleResponse(response);
   },
 
-  // Update item quantity
-  updateCartItem: async (userId: number, productId: number, quantity: number) => {
-    const response = await fetch(`${API_URL}/cart/${userId}/items/${productId}`, {
+  // Update job (recruiter only)
+  update: async (id: number, data: UpdateJobData): Promise<JobPosting> => {
+    const response = await fetch(`${API_URL}/jobs/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quantity }),
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify(data),
     });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to update cart");
-    }
-    const json = await response.json();
-    
-    // Handle new response format
-    if (json.data && json.data.cart) {
-      return json.data.cart;
-    }
-    
-    // Fallback for old format
-    return json;
+    return handleResponse(response);
   },
 
-  // Remove item from cart
-  removeFromCart: async (userId: number, productId: number) => {
-    const response = await fetch(`${API_URL}/cart/${userId}/items/${productId}`, {
+  // Delete job (recruiter only)
+  delete: async (id: number): Promise<{ message: string }> => {
+    const response = await fetch(`${API_URL}/jobs/${id}`, {
       method: "DELETE",
+      headers: getAuthHeader(),
     });
-    if (!response.ok) throw new Error("Failed to remove from cart");
-    const json = await response.json();
-    
-    // Handle new response format
-    if (json.data && json.data.cart) {
-      return json.data.cart;
-    }
-    
-    // Fallback for old format
-    return json;
+    return handleResponse(response);
   },
 
-  // Clear cart
-  clearCart: async (userId: number) => {
-    const response = await fetch(`${API_URL}/cart/${userId}`, {
-      method: "DELETE",
+  // Get my jobs (recruiter only)
+  getMyJobs: async (): Promise<JobPosting[]> => {
+    const response = await fetch(`${API_URL}/jobs/my-jobs`, {
+      headers: getAuthHeader(),
     });
-    if (!response.ok) throw new Error("Failed to clear cart");
-    const json = await response.json();
-    
-    // Handle new response format
-    if (json.data && json.data.cart) {
-      return json.data.cart;
-    }
-    
-    // Fallback for old format
-    return json;
+    return handleResponse(response);
+  },
+};
+
+// ===== APPLICATION API =====
+export const applicationAPI = {
+  // Apply for a job (candidate only)
+  apply: async (data: CreateApplicationData): Promise<Application> => {
+    const response = await fetch(`${API_URL}/applications`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  // Get my applications (candidate only)
+  getMyApplications: async (): Promise<Application[]> => {
+    const response = await fetch(`${API_URL}/applications/my-applications`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(response);
+  },
+
+  // Get applications for a job (recruiter only)
+  getForJob: async (jobId: number): Promise<Application[]> => {
+    const response = await fetch(`${API_URL}/applications/job/${jobId}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(response);
+  },
+
+  // Update application status (recruiter only)
+  updateStatus: async (
+    id: number,
+    status: ApplicationStatus
+  ): Promise<Application> => {
+    const response = await fetch(`${API_URL}/applications/${id}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeader(),
+      },
+      body: JSON.stringify({ status }),
+    });
+    return handleResponse(response);
+  },
+
+  // Withdraw application (candidate only)
+  withdraw: async (id: number): Promise<{ message: string }> => {
+    const response = await fetch(`${API_URL}/applications/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeader(),
+    });
+    return handleResponse(response);
+  },
+};
+
+// ===== USER API =====
+export const userAPI = {
+  // Search candidates (recruiter/admin only)
+  searchCandidates: async (
+    params: CandidateSearchParams
+  ): Promise<PaginatedResponse<User>> => {
+    const queryString = new URLSearchParams(
+      Object.entries(params).reduce((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = String(value);
+        return acc;
+      }, {} as Record<string, string>)
+    ).toString();
+
+    const response = await fetch(
+      `${API_URL}/users/search-candidates?${queryString}`,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return handleResponse(response);
   },
 };
 

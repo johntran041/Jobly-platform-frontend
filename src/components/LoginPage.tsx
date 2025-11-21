@@ -59,7 +59,7 @@ function validateUserResponse(data: any): ValidateUser | null {
     id: data.id,
     username: sanitizeString(String(data.username).trim()),
     email: sanitizeString(String(data.email).trim().toLowerCase()),
-    firstName: sanitizeString(String(data.username).trim()), // Use username as firstName
+    firstName: sanitizeString(String(data.username).trim()),
     lastName: "",
     gender: "unknown",
     image: "",
@@ -107,7 +107,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       const data = await response.json();
 
       if (response.ok && data.status === "success") {
-        // Your backend returns: { status: 'success', data: { token, user } }
         const userData = {
           ...data.data.user,
           token: data.data.token,
@@ -223,7 +222,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                     setPassword(e.target.value);
                     setValidationErrors({ ...validationErrors, password: "" });
                   }}
-                  placeholder="Try: User123!"
+                  placeholder="Enter your password"
                   required
                 />
                 <button
