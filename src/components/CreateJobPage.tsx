@@ -105,6 +105,12 @@ export function CreateJobPage() {
             <Link to="/my-jobs" className="btn btn-outline-light btn-sm me-2">
               My Jobs
             </Link>
+            <Link
+              to="/search-candidates"
+              className="btn btn-outline-light btn-sm me-2"
+            >
+              Search Candidates
+            </Link>
             <button onClick={logout} className="btn btn-outline-light btn-sm">
               Logout
             </button>

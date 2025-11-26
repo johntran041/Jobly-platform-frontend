@@ -10,6 +10,7 @@ import { CandidateProfilePage } from "./components/CandidateProfilePage";
 import { CreateJobPage } from "./components/CreateJobPage";
 import { MyJobsPage } from "./components/MyJobsPage";
 import { ViewApplicationsPage } from "./components/ViewApplicationsPage";
+import { CandidateSearchPage } from "./components/CandidateSearchPage";
 
 import "./App.css";
 
@@ -113,6 +114,17 @@ function AppRoutes() {
         element={
           user && user.role === "RECRUITER" ? (
             <CreateJobPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/search-candidates"
+        element={
+          user && user.role === "RECRUITER" ? (
+            <CandidateSearchPage />
           ) : (
             <Navigate to="/" replace />
           )

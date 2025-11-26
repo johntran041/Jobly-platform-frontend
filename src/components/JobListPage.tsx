@@ -139,6 +139,12 @@ export function JobListPage() {
                     >
                       Post Job
                     </Link>
+                    <Link
+                      to="/search-candidates"
+                      className="btn btn-outline-light btn-sm me-2"
+                    >
+                      Search Candidates
+                    </Link>
                   </>
                 )}
                 <button

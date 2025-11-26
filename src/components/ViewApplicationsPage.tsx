@@ -145,6 +145,12 @@ export function ViewApplicationsPage() {
             >
               Post Job
             </Link>
+            <Link
+              to="/search-candidates"
+              className="btn btn-outline-light btn-sm me-2"
+            >
+              Search Candidates
+            </Link>
             <button onClick={logout} className="btn btn-outline-light btn-sm">
               Logout
             </button>

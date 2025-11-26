@@ -238,7 +238,7 @@ export const userAPI = {
   // Search candidates (recruiter only)
   searchCandidates: async (
     params: CandidateSearchParams
-  ): Promise<PaginatedResponse<User>> => {
+  ): Promise<{ candidates: User[]; total: number }> => {
     const queryString = new URLSearchParams(
       Object.entries(params).reduce((acc, [key, value]) => {
         if (value !== undefined) acc[key] = String(value);
