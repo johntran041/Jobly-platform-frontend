@@ -1,126 +1,136 @@
 // src/App.tsx
-
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { LoginPage } from "./components/LoginPage";
+import { RegisterPage } from "./components/RegisterPage";
+import { JobListPage } from "./components/JobListPage";
+import { JobDetailPage } from "./components/JobDetailPage";
+import { MyApplicationsPage } from "./components/MyApplicationsPage";
+import { CandidateProfilePage } from "./components/CandidateProfilePage";
+import { CreateJobPage } from "./components/CreateJobPage";
+import { MyJobsPage } from "./components/MyJobsPage";
+import { ViewApplicationsPage } from "./components/ViewApplicationsPage";
+
 import "./App.css";
 
-interface ValidateUser {
-  id: number;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  gender: string;
-  image: string;
-  token?: string;
-  refreshToken?: string;
-}
+// This component contains the actual routes and uses the auth context
+function AppRoutes() {
+  const { user, loading } = useAuth();
 
-function App() {
-  const navigate = useNavigate();
-  const timerRef = useRef<number | null>(null);
-  const IDLE_TIMEOUT = 30 * 60 * 1000;
-
-  const [user, setUser] = useState<ValidateUser | null>(() => {
-    const storedUser = localStorage.getItem("user");
-    const tokenExpiry = localStorage.getItem("tokenExpiry");
-
-    if (storedUser && tokenExpiry) {
-      if (Date.now() > parseInt(tokenExpiry)) {
-        localStorage.removeItem("user");
-        localStorage.removeItem("tokenExpiry");
-        return null;
-      }
-      return JSON.parse(storedUser);
-    }
-    return null;
-  });
-
-  function handleLogin(userData: ValidateUser) {
-    const expiryTime = Date.now() + IDLE_TIMEOUT;
-    console.log("🔐 Login successful!");
-    console.log("⏰ Initial expiry time:", expiryTime);
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("tokenExpiry", expiryTime.toString());
-  }
-
-  const handleLogout = useCallback(() => {
-    console.log("🚪 Logging out...");
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    setUser(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("tokenExpiry");
-    navigate("/");
-  }, [navigate]);
-
-  const resetIdleTimer = useCallback(() => {
-    if (!user) return;
-    const newExpiryTime = Date.now() + IDLE_TIMEOUT;
-    localStorage.setItem("tokenExpiry", newExpiryTime.toString());
-    console.log(
-      "🔄 Activity detected! Timer reset. New expiry:",
-      new Date(newExpiryTime).toLocaleTimeString()
+  // Show loading while checking auth status
+  if (loading) {
+    return (
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "100vh" }}
+      >
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
     );
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    timerRef.current = setTimeout(() => {
-      console.log("⏰ Idle timeout! Logging out...");
-      alert(
-        "⏰ You've been inactive for 30 minutes. Logging out for security."
-      );
-      handleLogout();
-    }, IDLE_TIMEOUT);
-  }, [user, handleLogout, IDLE_TIMEOUT]);
-
-  useEffect(() => {
-    if (!user) return;
-    console.log("✅ Setting up idle timeout for user:", user.username);
-    const events = [
-      "mousedown",
-      "mousemove",
-      "keypress",
-      "scroll",
-      "touchstart",
-      "click",
-    ];
-    events.forEach((event) => {
-      document.addEventListener(event, resetIdleTimer);
-    });
-    resetIdleTimer();
-    return () => {
-      console.log("🧹 Cleaning up idle timeout");
-      events.forEach((event) => {
-        document.removeEventListener(event, resetIdleTimer);
-      });
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [user, resetIdleTimer]);
+  }
 
   return (
     <Routes>
+      {/* Public route - Home is job listings */}
+      <Route path="/" element={<JobListPage />} />
+
+      {/* Public route - Login page */}
       <Route
-        path="/"
+        path="/login"
+        element={user ? <Navigate to="/" replace /> : <LoginPage />}
+      />
+
+      {/* Public route - Register page */}
+      <Route path="/register" element={<RegisterPage />} />
+
+      {/* Public routes - Job details */}
+      <Route path="/jobs/:id" element={<JobDetailPage />} />
+
+      {/* Protected routes - Candidate */}
+      <Route
+        path="/dashboard"
         element={
           user ? (
-            <Navigate to="/jobs" replace />
+            <div className="container mt-5">
+              <h2>Dashboard - Coming Soon</h2>
+              <p>Welcome, {user.username}!</p>
+            </div>
           ) : (
-            <LoginPage onLogin={handleLogin} />
+            <Navigate to="/" replace />
           )
         }
       />
 
-      {/* Will add /jobs, /applications routes tomorrow */}
+      <Route
+        path="/my-applications"
+        element={
+          user && user.role === "CANDIDATE" ? (
+            <MyApplicationsPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route
+        path="/profile"
+        element={
+          user && user.role === "CANDIDATE" ? (
+            <CandidateProfilePage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* Protected routes - Recruiter */}
+      <Route
+        path="/my-jobs"
+        element={
+          user && user.role === "RECRUITER" ? (
+            <MyJobsPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/my-jobs/:jobId/applications"
+        element={
+          user && user.role === "RECRUITER" ? (
+            <ViewApplicationsPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/create-job"
+        element={
+          user && user.role === "RECRUITER" ? (
+            <CreateJobPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      {/* Catch all - redirect to jobs */}
+      <Route path="*" element={<Navigate to="/jobs" replace />} />
     </Routes>
+  );
+}
+
+// Main App component wraps everything in AuthProvider
+function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }
 

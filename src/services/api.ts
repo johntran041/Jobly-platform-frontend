@@ -1,6 +1,4 @@
 // src/services/api.ts
-// File imports TypeScript types
-// Crucial for strong type checking, ensuring that data sent to and receieved from the API matches the exprected structure
 import type {
   User,
   LoginCredentials,
@@ -8,6 +6,7 @@ import type {
   JobPosting,
   CreateJobData,
   UpdateJobData,
+  JobDetailResponse,
   Application,
   CreateApplicationData,
   ApplicationStatus,
@@ -17,13 +16,10 @@ import type {
   PaginatedResponse,
 } from "../types";
 
-// Constant determines the base URL for all API calls
-// Uses import.meta.env, means the url is configured via a Vite environment variable (e.g, in a .env file)
-// Then falls back to "localhost:5001/api" if the variable is not set
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
 
 // ===== HELPER FUNCTIONS =====
-const getAuthHeader = (): HeadersInit => {
+const getAuthHeader = (): Record<string, string> => {
   const token = localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
@@ -35,7 +31,6 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
     throw new Error(data.message || "Request failed");
   }
 
-  // Data extraction (Specific Backend Format)
   // Handle your backend's response format: { status: 'success', data: {...} }
   if (data.status === "success" && data.data) {
     return data.data;
@@ -44,7 +39,7 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
   return data;
 };
 
-// ===== AUTHENTICATION =====
+// ===== AUTH API =====
 export const authAPI = {
   register: async (
     registerData: RegisterData
@@ -54,7 +49,7 @@ export const authAPI = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(registerData),
     });
-  return handleResponse(response);
+    return handleResponse(response);
   },
 
   login: async (
@@ -68,20 +63,20 @@ export const authAPI = {
     return handleResponse(response);
   },
 
-  async getProfile(): Promise<User> {
+  getProfile: async (): Promise<User> => {
     const response = await fetch(`${API_URL}/users/me`, {
       headers: getAuthHeader(),
     });
     return handleResponse(response);
   },
 
-  updateProfile: async (data: Partial<User>): Promise<User> => {
+  updateProfile: async (data: Partial<User>): Promise<{ user: User }> => {
     const response = await fetch(`${API_URL}/users/me`, {
       method: "PUT",
-      headers: new Headers({
+      headers: {
         "Content-Type": "application/json",
         ...getAuthHeader(),
-      }),
+      },
       body: JSON.stringify(data),
     });
     return handleResponse(response);
@@ -107,7 +102,7 @@ export const jobAPI = {
     return handleResponse(response);
   },
 
-// Search jobs
+  // Search jobs
   search: async (
     params: JobSearchParams
   ): Promise<PaginatedResponse<JobPosting>> => {
@@ -123,7 +118,7 @@ export const jobAPI = {
   },
 
   // Get single job by ID
-  getById: async (id: number): Promise<JobPosting> => {
+  getById: async (id: number): Promise<JobDetailResponse> => {
     const response = await fetch(`${API_URL}/jobs/${id}`);
     return handleResponse(response);
   },
@@ -164,7 +159,9 @@ export const jobAPI = {
   },
 
   // Get my jobs (recruiter only)
-  getMyJobs: async (): Promise<JobPosting[]> => {
+  // Backend returns: { status: 'success', data: { jobs: JobPosting[] } }
+  // After handleResponse extracts 'data', we get: { jobs: JobPosting[] }
+  getMyJobs: async (): Promise<{ jobs: JobPosting[] }> => {
     const response = await fetch(`${API_URL}/jobs/my-jobs`, {
       headers: getAuthHeader(),
     });
@@ -188,15 +185,22 @@ export const applicationAPI = {
   },
 
   // Get my applications (candidate only)
-  getMyApplications: async (): Promise<Application[]> => {
+  getMyApplications: async (): Promise<{ applications: Application[] }> => {
     const response = await fetch(`${API_URL}/applications/my-applications`, {
       headers: getAuthHeader(),
     });
     return handleResponse(response);
   },
 
-  // Get applications for a job (recruiter only)
-  getForJob: async (jobId: number): Promise<Application[]> => {
+  // Get applications for a specific job (recruiter only)
+  // Backend returns: { status: 'success', data: { job: { id, title }, applications: Application[] } }
+  // After handleResponse extracts 'data', we get: { job: { id, title }, applications: Application[] }
+  getForJob: async (
+    jobId: number
+  ): Promise<{
+    job: { id: number; title: string };
+    applications: Application[];
+  }> => {
     const response = await fetch(`${API_URL}/applications/job/${jobId}`, {
       headers: getAuthHeader(),
     });
@@ -231,7 +235,7 @@ export const applicationAPI = {
 
 // ===== USER API =====
 export const userAPI = {
-  // Search candidates (recruiter/admin only)
+  // Search candidates (recruiter only)
   searchCandidates: async (
     params: CandidateSearchParams
   ): Promise<PaginatedResponse<User>> => {
@@ -251,4 +255,3 @@ export const userAPI = {
     return handleResponse(response);
   },
 };
-

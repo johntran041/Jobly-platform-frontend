@@ -31,13 +31,11 @@ export interface User {
   updatedAt?: string;
 }
 
-// Login Information
 export interface LoginCredentials {
   email: string;
   password: string;
 }
 
-// Registration Information - User Signup
 export interface RegisterData {
   email: string;
   password: string;
@@ -94,6 +92,11 @@ export interface CreateJobData {
 
 export interface UpdateJobData extends Partial<CreateJobData> {
   isActive?: boolean;
+}
+
+// Response wrapper for single job detail
+export interface JobDetailResponse {
+  job: JobPosting;
 }
 
 // ===== APPLICATION TYPES =====
@@ -167,14 +170,11 @@ export interface ApiResponse<T> {
 }
 
 export interface PaginatedResponse<T> {
-  status: string;
-  results: number;
-  data: {
-    jobs: T[]; // Backend returns "jobs" not "items"
-    total: number;
-    skip: number;
-    limit: number;
-  };
+  jobs: T[]; // Changed from 'items' to 'jobs' to match backend
+  total: number;
+  skip?: number;
+  limit?: number;
+  pages?: number;
 }
 
 // ===== FORM VALIDATION TYPES =====
